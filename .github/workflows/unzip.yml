@@ -1,0 +1,33 @@
+name: Extract app bundle
+on:
+  push:
+    paths:
+      - 'grimoire-app-standalone.zip'
+  workflow_dispatch:
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Unzip bundle into repo root
+        run: |
+          set -e
+          unzip -o grimoire-app-standalone.zip -d /tmp/bundle
+          entries=(/tmp/bundle/*)
+          if [ "${#entries[@]}" -eq 1 ] && [ -d "${entries[0]}" ]; then
+            src="${entries[0]}"
+          else
+            src="/tmp/bundle"
+          fi
+          shopt -s dotglob
+          cp -rf "$src"/* .
+          rm -f grimoire-app-standalone.zip
+      - name: Commit extracted files
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Add grimoire-app files from bundle" || echo "nothing to commit"
+          git push
