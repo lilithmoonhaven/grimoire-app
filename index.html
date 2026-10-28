@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Alchemist's Grimoire — Custom Ritual &amp; Spell Generator (Free Gift Prototype)</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+  <div class="banner">☽ THE ALCHEMIST'S GRIMOIRE ☾</div>
+  <h1>Custom Ritual &amp; Spell Generator</h1>
+  <p class="subtitle">A free gift prototype — standalone, no payment, no signup, no tracking.</p>
+
+  <section class="panel" aria-label="Choose your ritual">
+    <label>Intention
+      <select id="intention"></select>
+    </label>
+    <label>Moon phase
+      <select id="moon"></select>
+    </label>
+    <label>How to bring your intention to life
+      <select id="method"></select>
+    </label>
+    <button id="personal-toggle" type="button">✧ Make It Personal</button>
+    <div id="personal-panel" hidden>
+      <p>These details change the <em>text</em> of your ritual. They are not spoken aloud — see the voice note below.</p>
+      <label>Personal focus (free text) <input id="p-focus" type="text" placeholder="e.g. a calmer morning routine"></label>
+      <label>Atmosphere <input id="p-atmosphere" type="text" value="gentle"></label>
+      <label>Energy <input id="p-energy" type="text" value="grounded"></label>
+      <label>Element <input id="p-element" type="text" value="earth"></label>
+      <label>Minutes <input id="p-minutes" type="text" value="5"></label>
+      <label>Style <input id="p-style" type="text" value="Gentle &amp; Reflective"></label>
+      <label>Tone <input id="p-tone" type="text" value="Gentle &amp; Encouraging"></label>
+      <label>Keywords (optional) <input id="p-keywords" type="text"></label>
+      <label>Additional note (optional) <input id="p-notes" type="text"></label>
+    </div>
+    <button id="awaken" type="button" class="primary">✦ AWAKEN MY RITUAL ✦</button>
+    <button id="again" type="button">Generate another (new title, opening &amp; closing)</button>
+  </section>
+
+  <section class="panel" aria-label="Music and voice">
+    <h2>Music &amp; Voice</h2>
+    <p class="note">Music and voice are optional and independent: you can have music only, voice only, both, or none.</p>
+    <label>Music
+      <select id="music">
+        <option value="none">No Music</option>
+        <option value="heartbeat">Heartbeat</option>
+        <option value="birds">Birds</option>
+        <option value="flute">Flute</option>
+        <option value="windchimes">Windchimes</option>
+        <option value="guitar">Gentle Subtle Guitar</option>
+        <option value="tibetan-bowls">Tibetan Singing Bowls</option>
+      </select>
+    </label>
+    <p class="note">Choosing a track starts it automatically — no Play press needed. Choosing No Music stops it. Heartbeat always plays at full volume; other tracks follow the volume slider.</p>
+    <label>Music volume <input id="music-volume" type="range" min="0" max="1" step="0.05" value="0.5"></label>
+    <label>Music progress <input id="music-progress" type="range" min="0" max="100" step="0.1" value="0"></label>
+    <p id="music-time" class="status">0:00 / 0:00</p>
+    <label><input id="music-repeat" type="checkbox" checked> Repeat music</label>
+    <div class="row">
+      <button id="music-play" type="button">Play</button>
+      <button id="music-pause" type="button">Pause</button>
+      <button id="music-stop" type="button">Stop</button>
+    </div>
+    <p id="music-status" class="status">No music selected.</p>
+
+    <label>Narrator voice
+      <select id="voice"></select>
+    </label>
+    <p class="note">Voices are the recorded sample voices Krystal chose — not browser/robot voices. The four voices marked “clips coming soon” use the same clip names in a different folder; they will be enabled when their recordings are copied in. No browser speech reader is used as the main voice.</p>
+    <label>Read
+      <select id="reading-scope">
+        <option value="everything">Read: Everything</option>
+        <option value="ritual-only">Read: Ritual only</option>
+      </select>
+    </label>
+    <p class="note">“Read: Everything” reads the headings, tools, steps (except step 2, see note), affirmation, reflection and disclaimers. “Read: Ritual only” reads only the ritual steps (opening, method, moon, intention, focus if not personalised, closing) — still skipping step 2, which has no pre-recorded clip.</p>
+    <label><input id="auto-read" type="checkbox" checked> Auto-read ritual (when a voice is chosen, the ritual reads aloud automatically after you awaken it)</label>
+    <label>Voice volume <input id="voice-volume" type="range" min="0" max="1" step="0.05" value="1"></label>
+    <label>Voice pitch <input id="voice-pitch" type="range" min="0.8" max="1.2" step="0.05" value="1"></label>
+    <p class="note">Voice pitch for recorded audio is implemented as playback speed (0.8–1.2). True pitch-shifting of MP3 clips without processing is not available, so pitch and speed move together here — unlike the Canva browser voices, where pitch was a separate speech setting.</p>
+    <div class="row">
+      <button id="voice-read" type="button">Read Aloud</button>
+      <button id="voice-pause" type="button">Pause / Resume narration</button>
+      <button id="voice-stop" type="button">Stop narration</button>
+    </div>
+    <p id="voice-status" class="status">Voice: none selected.</p>
+    <p class="note"><strong>Voice note — please read:</strong> narration uses pre-recorded voice blocks, not your browser's speech reader, so it works on phones that have no browser voices. The atmosphere step (step 2) and any free-typed personal focus text are shown in text only and are <strong>not spoken</strong>, because they are personalised and have no pre-recorded clip. The voice skips step 2 and continues with step 3. Everything else in the generated ritual is spoken in order.</p>
+  </section>
+
+  <section id="output" class="panel ritual" aria-live="polite">
+    <p>Choose an intention, a moon phase, and a method, then press AWAKEN MY RITUAL.</p>
+  </section>
+
+  <footer>
+    <p>This is a private prototype for testing only — not published, not for sale. A ritual is a symbolic, creative or reflective practice — not a guarantee of results.</p>
+  </footer>
+</main>
+<script src="app.js"></script>
+</body>
+</html>
