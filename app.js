@@ -74,10 +74,10 @@ const VOICES = [
   { id: "none", label: "No Voice", folder: null, available: true },
   { id: "voice-a-female-warm", label: "Warm Female", folder: "voice-a-female-warm", available: true },
   { id: "voice-b-male-reassuring", label: "Gentle Male", folder: "voice-b-male-reassuring", available: true },
-  { id: "voice-c-female-soothing", label: "Soothing Female — clips coming soon", folder: "voice-c-female-soothing", available: false },
-  { id: "voice-d-female-sultry", label: "Sultry Female — clips coming soon", folder: "voice-d-female-sultry", available: false },
-  { id: "voice-e-male-calming-deep", label: "Calming Deep Male — clips coming soon", folder: "voice-e-male-calming-deep", available: false },
-  { id: "voice-f-male-deep-british", label: "Deep British Male — clips coming soon", folder: "voice-f-male-deep-british", available: false }
+  { id: "voice-c-female-soothing", label: "Soothing Female", folder: "voice-c-female-soothing", available: true },
+  { id: "voice-d-female-sultry", label: "Sultry Female", folder: "voice-d-female-sultry", available: true },
+  { id: "voice-e-male-calming-deep", label: "Calming Deep Male", folder: "voice-e-male-calming-deep", available: true },
+  { id: "voice-f-male-deep-british", label: "Deep British Male", folder: "voice-f-male-deep-british", available: true }
 ];
 
 const MUSIC = {
@@ -196,29 +196,40 @@ if (typeof document !== "undefined") {
     $("music-pause").addEventListener("click", function () { musicAudio.pause(); $("music-status").textContent = "Music paused."; });
     $("music-stop").addEventListener("click", function () { musicAudio.pause(); musicAudio.currentTime = 0; $("music-status").textContent = "Music stopped."; });
 
-    function stopVoice() { voicePlaying = false; voicePaused = false; voiceAudio.pause(); voiceAudio.removeAttribute("src"); voiceAudio.load(); $("voice-status").textContent = "Narration stopped."; }
+    function stopVoice() { if (typeof voiceTimer !== "undefined" && voiceTimer) { clearTimeout(voiceTimer); voiceTimer = null; } voicePlaying = false; voicePaused = false; voiceAudio.pause(); voiceAudio.removeAttribute("src"); voiceAudio.load(); $("voice-status").textContent = "Narration stopped."; if ($("voice-read")) $("voice-read").textContent = "✦ Read Ritual ✦"; }
     function playVoiceAt(index) {
-      if (index >= currentPlaylist.length) { voicePlaying = false; $("voice-status").textContent = "Narration finished."; return; }
+      if (index >= currentPlaylist.length) { voicePlaying = false; $("voice-status").textContent = "Narration finished."; if ($("voice-read")) $("voice-read").textContent = "✦ Read Ritual ✦"; return; }
       voiceIndex = index;
       voiceAudio.src = currentPlaylist[index];
       voiceAudio.volume = parseFloat($("voice-volume").value);
       voiceAudio.playbackRate = parseFloat($("voice-pitch").value); // recorded audio: pitch moves with speed
       voiceAudio.play().catch(function () { $("voice-status").textContent = "Unable to play narration clip " + (index + 1) + ". Check that the blocks folder was copied with this page."; voicePlaying = false; });
     }
-    voiceAudio.addEventListener("ended", function () { if (voicePlaying && !voicePaused) playVoiceAt(voiceIndex + 1); });
+    let voiceTimer = null;
+    function pauseAfterClip(src) {
+      if (!src) return 800;
+      if (src.indexOf("reflection-") !== -1) return 4000; // time to reflect after the reflection question
+      if (src.indexOf("affirmation-") !== -1) return 2500; // let the affirmation land
+      if (src.indexOf("heading-") !== -1) return 1200; // breath between sections
+      if (src.indexOf("closing-") !== -1) return 1500;
+      return 800; // gentle breath between all other clips
+    }
+    voiceAudio.addEventListener("ended", function () {
+      if (!voicePlaying || voicePaused) return;
+      const finished = currentPlaylist[voiceIndex];
+      const pause = pauseAfterClip(finished);
+      if (finished && finished.indexOf("reflection-") !== -1) $("voice-status").textContent = "Take a moment to reflect…";
+      voiceTimer = setTimeout(function () { if (voicePlaying && !voicePaused) playVoiceAt(voiceIndex + 1); }, pause);
+    });
     $("voice-volume").addEventListener("input", function () { voiceAudio.volume = parseFloat(this.value); });
     $("voice-pitch").addEventListener("input", function () { voiceAudio.playbackRate = parseFloat(this.value); });
-    $("voice-stop").addEventListener("click", stopVoice);
-    $("voice-pause").addEventListener("click", function () {
-      if (!voicePlaying) return;
-      if (voicePaused) { voicePaused = false; voiceAudio.play(); $("voice-status").textContent = "Narration resumed."; }
-      else { voicePaused = true; voiceAudio.pause(); $("voice-status").textContent = "Narration paused."; }
-    });
     $("voice-read").addEventListener("click", function () {
-      if (!current) { $("voice-status").textContent = "Generate a ritual first, then read it aloud."; return; }
-      if (voiceSel.value === "none") { $("voice-status").textContent = "Choose a voice first (Warm Female or Gentle Male)."; return; }
+      if (voicePlaying) { stopVoice(); return; }
+      if (!current) { $("voice-status").textContent = "Generate a ritual first, then read it."; return; }
+      if (voiceSel.value === "none") { $("voice-status").textContent = "Choose a voice first."; return; }
       currentPlaylist = voicePlaylist(current, voiceSel.value, $("reading-scope").value);
       voicePlaying = true; voicePaused = false;
+      this.textContent = "■ Stop Reading";
       $("voice-status").textContent = "Reading ritual aloud… (atmosphere step and any personal focus text are shown in text only, not spoken — see note below.)";
       playVoiceAt(0);
     });
@@ -263,9 +274,10 @@ if (typeof document !== "undefined") {
         currentPlaylist = voicePlaylist(current, voiceSel.value, $("reading-scope").value);
         voicePlaying = true; voicePaused = false;
         $("voice-status").textContent = "Reading ritual aloud… (atmosphere step and any personal focus text are shown in text only, not spoken.)";
+        if ($("voice-read")) $("voice-read").textContent = "■ Stop Reading";
         playVoiceAt(0);
       } else if (voiceSel.value === "none") {
-        $("voice-status").textContent = "Voice: none selected. Choose a voice and press Read Aloud, or turn on Auto-read.";
+        $("voice-status").textContent = "Voice: none selected. Choose a voice and press Read Ritual, or turn on Auto-read.";
       }
     }
     $("awaken").addEventListener("click", awaken);

@@ -82,10 +82,9 @@
     <label>Voice pitch <input id="voice-pitch" type="range" min="0.8" max="1.2" step="0.05" value="1"></label>
     <p class="note">Voice pitch for recorded audio is implemented as playback speed (0.8–1.2). True pitch-shifting of MP3 clips without processing is not available, so pitch and speed move together here — unlike the Canva browser voices, where pitch was a separate speech setting.</p>
     <div class="row">
-      <button id="voice-read" type="button">Read Aloud</button>
-      <button id="voice-pause" type="button">Pause / Resume narration</button>
-      <button id="voice-stop" type="button">Stop narration</button>
+      <button id="voice-read" type="button" class="primary">✦ Read Ritual ✦</button>
     </div>
+    <p class="note">Tap Read Ritual once to start the narration, tap it again to stop it. The narration pauses briefly between sections, and takes a longer 4-second pause after the reflection question, so you have time to reflect before the closing.</p>
     <p id="voice-status" class="status">Voice: none selected.</p>
     <p class="note"><strong>Voice note — please read:</strong> narration uses pre-recorded voice blocks, not your browser's speech reader, so it works on phones that have no browser voices. The atmosphere step (step 2) and any free-typed personal focus text are shown in text only and are <strong>not spoken</strong>, because they are personalised and have no pre-recorded clip. The voice skips step 2 and continues with step 3. Everything else in the generated ritual is spoken in order.</p>
   </section>
