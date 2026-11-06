@@ -87,7 +87,9 @@ const MUSIC = {
   flute: "https://raw.githubusercontent.com/lilithmoonhaven/grimoire-audio/main/new-cleaned/flute.mp3",
   windchimes: "https://raw.githubusercontent.com/lilithmoonhaven/grimoire-audio/main/new-cleaned/windchimes.mp3",
   guitar: "https://raw.githubusercontent.com/lilithmoonhaven/grimoire-audio/main/new-cleaned/guitar.mp3",
-  "tibetan-bowls": "https://raw.githubusercontent.com/lilithmoonhaven/grimoire-audio/main/new-cleaned/tibetan-bowls.mp3"
+  "tibetan-bowls": "https://raw.githubusercontent.com/lilithmoonhaven/grimoire-audio/main/new-cleaned/tibetan-bowls.mp3",
+  "rain-owl": "https://raw.githubusercontent.com/lilithmoonhaven/grimoire-audio/main/new-cleaned/rain-owl.mp3",
+  "soft-piano": "https://raw.githubusercontent.com/lilithmoonhaven/grimoire-audio/main/new-cleaned/soft-piano.mp3"
 };
 
 function pick(arr, rnd) { return arr[Math.floor((rnd || Math.random)() * arr.length)]; }
@@ -165,10 +167,91 @@ if (typeof document !== "undefined") {
     METHODS.forEach(function (m) { const o = document.createElement("option"); o.value = m.id; o.textContent = m.name; methodSel.appendChild(o); });
     VOICES.forEach(function (v) { const o = document.createElement("option"); o.value = v.folder || "none"; o.textContent = v.label; if (!v.available) o.disabled = true; voiceSel.appendChild(o); });
 
+    // Analytics: which choices people pick (ids only — never personal text).
+    intentionSel.addEventListener("change", function () { trackEvent("intention_pick", { intention: intentionSel.value }); });
+    moonSel.addEventListener("change", function () { trackEvent("moon_pick", { moon: moonSel.value }); });
+    methodSel.addEventListener("change", function () { trackEvent("method_pick", { method: methodSel.value }); });
+    voiceSel.addEventListener("change", function () { trackEvent("voice_pick", { voice: voiceSel.value }); });
+
     let current = null, currentPlaylist = [], voiceIndex = 0, voicePlaying = false, voicePaused = false;
     const musicAudio = new Audio(); musicAudio.preload = "auto";
     const voiceAudio = new Audio(); voiceAudio.preload = "auto";
     let currentTrack = "none";
+
+    /* --- Anonymous analytics (counts only, no personal info) ---
+       trackEvent() mirrors the Raven colouring app funnel. Events are
+       anonymous counts only: no names, no personal focus / keywords / notes
+       text, no IP/user identity. Until ANALYTICS_SHEET_URL is set (paste the
+       deployed Apps Script web-app /exec URL here), events only tally on
+       this device in localStorage — nothing is sent anywhere.
+       SETUP (when the Sheet is ready):
+       1. Create the Google Sheet in Drive (one tab per app, "grimoire" tab).
+       2. Paste the Apps Script doPost handler from the Apps Analytics
+          Dashboard setup section into that Sheet and deploy as a web app.
+       3. Paste the web-app /exec URL into ANALYTICS_SHEET_URL below.
+       4. Verify with a test: generate a ritual, then check the Sheet's
+          "grimoire" tab for new event rows. Until that test passes,
+          analytics are NOT live. */
+    var ANALYTICS_BOOK = "grimoire";
+    var ANALYTICS_SHEET_URL = ""; // <-- paste deployed Apps Script /exec URL here
+    var ANALYTICS_QUEUE_KEY = "grimoireAnalyticsQueueV1";
+    var ANALYTICS_TALLY_KEY = "grimoireAnalyticsTallyV1";
+    var ANALYTICS_META_KEY = "grimoireAnalyticsMetaV1";
+    var analyticsQueue = [];
+    var analyticsTally = {};
+    try { analyticsQueue = JSON.parse(localStorage.getItem(ANALYTICS_QUEUE_KEY) || "[]"); } catch (e) { analyticsQueue = []; }
+    try { analyticsTally = JSON.parse(localStorage.getItem(ANALYTICS_TALLY_KEY) || "{}"); } catch (e) { analyticsTally = {}; }
+    function saveAnalyticsQueue() { try { localStorage.setItem(ANALYTICS_QUEUE_KEY, JSON.stringify(analyticsQueue.slice(-500))); } catch (e) {} }
+    function saveAnalyticsTally() { try { localStorage.setItem(ANALYTICS_TALLY_KEY, JSON.stringify(analyticsTally)); } catch (e) {} }
+    function sendSheetQueue(beacon) {
+      if (!ANALYTICS_SHEET_URL || !analyticsQueue.length) return;
+      var batch = analyticsQueue.splice(0, 12);
+      saveAnalyticsQueue();
+      var payload = JSON.stringify({ book: ANALYTICS_BOOK, events: batch });
+      try {
+        if (beacon && navigator.sendBeacon) {
+          var ok = navigator.sendBeacon(ANALYTICS_SHEET_URL, new Blob([payload], { type: "text/plain" }));
+          if (!ok) { analyticsQueue = batch.concat(analyticsQueue); saveAnalyticsQueue(); }
+        } else {
+          fetch(ANALYTICS_SHEET_URL, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain" }, body: payload })
+            .catch(function () { analyticsQueue = batch.concat(analyticsQueue); saveAnalyticsQueue(); });
+        }
+      } catch (e) { analyticsQueue = batch.concat(analyticsQueue); saveAnalyticsQueue(); }
+    }
+    function trackEvent(type, props) {
+      var ev = { book: ANALYTICS_BOOK, type: type, at: new Date().toISOString(), props: props || {} };
+      analyticsQueue.push(ev);
+      if (analyticsQueue.length > 500) analyticsQueue = analyticsQueue.slice(-500);
+      saveAnalyticsQueue();
+      analyticsTally[type] = (analyticsTally[type] || 0) + 1;
+      saveAnalyticsTally();
+      try { if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("grimoire-analytics", { detail: ev })); } catch (e) {}
+      if (typeof window !== "undefined" && window.plausible) { try { window.plausible("grimoire_" + type, { props: props || {} }); } catch (e) {} }
+      if (typeof window !== "undefined" && window.dataLayer) { try { window.dataLayer.push({ event: "grimoire_" + type, book: ANALYTICS_BOOK, props: props || {} }); } catch (e) {} }
+      if (ANALYTICS_SHEET_URL && analyticsQueue.length >= 12) sendSheetQueue(false);
+    }
+    setInterval(function () { sendSheetQueue(false); }, 20000);
+    // Flush any queue restored from a previous visit, once the page is open.
+    setTimeout(function () { sendSheetQueue(false); }, 2000);
+    // Session start / first vs return visit (anonymous counts only).
+    var sessionStart = Date.now();
+    var sessionRituals = 0;
+    var analyticsMeta = {};
+    try { analyticsMeta = JSON.parse(localStorage.getItem(ANALYTICS_META_KEY) || "{}"); } catch (e) { analyticsMeta = {}; }
+    var isFirstVisit = !analyticsMeta.visits;
+    var daysSince = null;
+    if (analyticsMeta.lastVisit) { daysSince = Math.floor((Date.now() - analyticsMeta.lastVisit) / 86400000); }
+    analyticsMeta.visits = (analyticsMeta.visits || 0) + 1;
+    analyticsMeta.lastVisit = Date.now();
+    try { localStorage.setItem(ANALYTICS_META_KEY, JSON.stringify(analyticsMeta)); } catch (e) {}
+    trackEvent(isFirstVisit ? "first_visit" : "return_visit", { visits: analyticsMeta.visits, days_since_last_visit: daysSince });
+    trackEvent("session_start", {});
+    function sendSessionEnd() {
+      trackEvent("session_end", { seconds: Math.round((Date.now() - sessionStart) / 1000), rituals_generated: sessionRituals });
+      sendSheetQueue(true);
+    }
+    document.addEventListener("visibilitychange", function () { if (document.hidden) sendSessionEnd(); });
+    window.addEventListener("pagehide", sendSessionEnd);
 
     function musicVolume() { return currentTrack === "heartbeat" ? 1.0 : parseFloat($("music-volume").value); }
     function applyMusicVolume() { musicAudio.volume = musicVolume(); }
@@ -178,7 +261,7 @@ if (typeof document !== "undefined") {
       musicAudio.src = MUSIC[track];
       musicAudio.loop = $("music-repeat").checked;
       applyMusicVolume();
-      musicAudio.play().then(function () { $("music-status").textContent = "Playing: " + musicSel.options[musicSel.selectedIndex].text; })
+      musicAudio.play().then(function () { $("music-status").textContent = "Playing: " + musicSel.options[musicSel.selectedIndex].text; trackEvent("music_play", { track: track }); })
         .catch(function () { $("music-status").textContent = "Unable to play track. Please check network connection."; });
     }
     musicSel.addEventListener("change", function () { playMusic(musicSel.value); }); // auto-play, no Play press needed
@@ -193,8 +276,8 @@ if (typeof document !== "undefined") {
     });
     $("music-repeat").addEventListener("change", function () { musicAudio.loop = this.checked; });
     $("music-play").addEventListener("click", function () { if (musicSel.value !== "none") playMusic(musicSel.value); });
-    $("music-pause").addEventListener("click", function () { musicAudio.pause(); $("music-status").textContent = "Music paused."; });
-    $("music-stop").addEventListener("click", function () { musicAudio.pause(); musicAudio.currentTime = 0; $("music-status").textContent = "Music stopped."; });
+    $("music-pause").addEventListener("click", function () { musicAudio.pause(); $("music-status").textContent = "Music paused."; trackEvent("music_pause", { track: currentTrack }); });
+    $("music-stop").addEventListener("click", function () { musicAudio.pause(); musicAudio.currentTime = 0; $("music-status").textContent = "Music stopped."; trackEvent("music_stop", { track: currentTrack }); });
 
     function stopVoice() { if (typeof voiceTimer !== "undefined" && voiceTimer) { clearTimeout(voiceTimer); voiceTimer = null; } voicePlaying = false; voicePaused = false; voiceAudio.pause(); voiceAudio.removeAttribute("src"); voiceAudio.load(); $("voice-status").textContent = "Narration stopped."; if ($("voice-read")) $("voice-read").textContent = "✦ Read Ritual ✦"; }
     function playVoiceAt(index) {
@@ -224,9 +307,10 @@ if (typeof document !== "undefined") {
     $("voice-volume").addEventListener("input", function () { voiceAudio.volume = parseFloat(this.value); });
     $("voice-pitch").addEventListener("input", function () { voiceAudio.playbackRate = parseFloat(this.value); });
     $("voice-read").addEventListener("click", function () {
-      if (voicePlaying) { stopVoice(); return; }
+      if (voicePlaying) { stopVoice(); trackEvent("voice_stop", { voice: voiceSel.value }); return; }
       if (!current) { $("voice-status").textContent = "Generate a ritual first, then read it."; return; }
       if (voiceSel.value === "none") { $("voice-status").textContent = "Choose a voice first."; return; }
+      trackEvent("voice_play", { voice: voiceSel.value, scope: $("reading-scope").value });
       currentPlaylist = voicePlaylist(current, voiceSel.value, $("reading-scope").value);
       voicePlaying = true; voicePaused = false;
       this.textContent = "■ Stop Reading";
@@ -270,6 +354,9 @@ if (typeof document !== "undefined") {
       stopVoice();
       current = generateRitual(intentionSel.value, moonSel.value, methodSel.value, personalValues());
       render(current);
+      sessionRituals++;
+      // Analytics: choice ids only — never personal focus / keywords / notes.
+      trackEvent("ritual_generated", { intention: intentionSel.value, moon: moonSel.value, method: methodSel.value, voice: voiceSel.value, music: currentTrack });
       if ($("auto-read").checked && voiceSel.value !== "none") {
         currentPlaylist = voicePlaylist(current, voiceSel.value, $("reading-scope").value);
         voicePlaying = true; voicePaused = false;
