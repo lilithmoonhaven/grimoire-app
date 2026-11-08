@@ -190,7 +190,13 @@ if (typeof document !== "undefined") {
        Apps Sheet / Apps /exec are retired for Grimoire; do NOT point
        this back at them. Published 2026-11-08 to the live Grimoire app.
        Until a test passes (generate a ritual, check the Colouring
-       Sheet's "grimoire" tab for new event rows), analytics are NOT live. */
+       Sheet's "grimoire" tab for new event rows), analytics are NOT live.
+       FIX 2026-11-08: events were sent raw as { type, at, props } and the
+       script only writes { type, label, value, day } — so rows landed with
+       day / label / value blank (row 23, the only ritual_generated row,
+       had no date or ritual details). sendSheetQueue() now converts each
+       event through sheetEventFor() first, like the Raven app. Published
+       2026-11-08 to the live Grimoire app. */
     var ANALYTICS_BOOK = "grimoire";
     var ANALYTICS_SHEET_URL = "https://script.google.com/macros/s/AKfycbw9thcsuocQSPdmNltDsgS87CDlQknpD2mI20m-N80H5dqsoWIOOlJkp4T6Tyxl7fi-/exec"; // UNIFIED: Colouring Apps Script /exec — posts to the "grimoire" tab of the one Colouring Book Analytics Sheet
     var ANALYTICS_QUEUE_KEY = "grimoireAnalyticsQueueV1";
@@ -206,7 +212,12 @@ if (typeof document !== "undefined") {
       if (!ANALYTICS_SHEET_URL || !analyticsQueue.length) return;
       var batch = analyticsQueue.splice(0, 12);
       saveAnalyticsQueue();
-      var payload = JSON.stringify({ book: ANALYTICS_BOOK, events: batch });
+      // The deployed script only writes { type, label, value, day } per
+      // event — the queue's raw { type, at, props } shape lands with day /
+      // label / value blank (seen 2026-11-08: row 23 ritual_generated had
+      // no date or details). Convert each event first, exactly like the
+      // Raven colouring app's sheetEventFor(). Do NOT send raw events.
+      var payload = JSON.stringify({ book: ANALYTICS_BOOK, events: batch.map(sheetEventFor) });
       try {
         if (beacon && navigator.sendBeacon) {
           var ok = navigator.sendBeacon(ANALYTICS_SHEET_URL, new Blob([payload], { type: "text/plain" }));
@@ -216,6 +227,42 @@ if (typeof document !== "undefined") {
             .catch(function () { analyticsQueue = batch.concat(analyticsQueue); saveAnalyticsQueue(); });
         }
       } catch (e) { analyticsQueue = batch.concat(analyticsQueue); saveAnalyticsQueue(); }
+    }
+    /* Convert one queued event { type, at, props } into the Sheet row
+       shape the deployed script accepts: { type, label, value, day }.
+       The event type stays the type; the day is the date half of the
+       event's own timestamp (missing / garbled falls back to today —
+       an event with no valid day is dropped by the script); the label
+       carries the event's main dimension first (intention / moon /
+       method / voice / music / track / …) plus any other props as
+       "key=value" pairs; and the first whole-number prop (visits,
+       seconds, rituals generated, …) becomes the value. Nothing
+       personal is ever in props — counts and patterns only. */
+    function sheetEventFor(ev) {
+      var props = ev.props || {};
+      var day = "";
+      if (ev.at && /^\d{4}-\d{2}-\d{2}/.test(ev.at)) day = ev.at.slice(0, 10);
+      if (!day) day = new Date().toISOString().slice(0, 10);
+      var labelKeys = ["intention", "moon", "method", "voice", "music", "track", "scope", "link"];
+      var parts = [];
+      var used = {};
+      labelKeys.forEach(function (k) {
+        if (props[k] !== undefined && props[k] !== null && String(props[k]) !== "") { parts.push(String(props[k])); used[k] = true; }
+      });
+      var value = null;
+      for (var k in props) {
+        if (!Object.prototype.hasOwnProperty.call(props, k)) continue;
+        var v = props[k];
+        if (value === null && v !== null && v !== "" && isFinite(Number(v)) && String(v).trim() !== "" && /^-?\d+$/.test(String(v).trim())) {
+          value = parseInt(String(v), 10);
+          used[k] = true;
+          continue;
+        }
+        if (!used[k] && v !== undefined && v !== null && String(v) !== "") parts.push(k + "=" + String(v));
+      }
+      var out = { type: String(ev.type || "event"), label: parts.join(" · ").slice(0, 120), day: day };
+      if (value !== null) out.value = value;
+      return out;
     }
     function trackEvent(type, props) {
       var ev = { book: ANALYTICS_BOOK, type: type, at: new Date().toISOString(), props: props || {} };
