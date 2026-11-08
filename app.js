@@ -184,16 +184,15 @@ if (typeof document !== "undefined") {
        text, no IP/user identity. Until ANALYTICS_SHEET_URL is set (paste the
        deployed Apps Script web-app /exec URL here), events only tally on
        this device in localStorage — nothing is sent anywhere.
-       SETUP (when the Sheet is ready):
-       1. Create the Google Sheet in Drive (one tab per app, "grimoire" tab).
-       2. Paste the Apps Script doPost handler from the Apps Analytics
-          Dashboard setup section into that Sheet and deploy as a web app.
-       3. Paste the web-app /exec URL into ANALYTICS_SHEET_URL below.
-       4. Verify with a test: generate a ritual, then check the Sheet's
-          "grimoire" tab for new event rows. Until that test passes,
-          analytics are NOT live. */
+       UNIFIED ANALYTICS (2026-11-06): ALL apps post to ONE Sheet — the
+       Colouring Book Analytics Sheet (one tab per app, "grimoire" tab),
+       via the Colouring Apps Script /exec URL below. The old separate
+       Apps Sheet / Apps /exec are retired for Grimoire; do NOT point
+       this back at them. Published 2026-11-08 to the live Grimoire app.
+       Until a test passes (generate a ritual, check the Colouring
+       Sheet's "grimoire" tab for new event rows), analytics are NOT live. */
     var ANALYTICS_BOOK = "grimoire";
-    var ANALYTICS_SHEET_URL = ""; // <-- paste deployed Apps Script /exec URL here
+    var ANALYTICS_SHEET_URL = "https://script.google.com/macros/s/AKfycbw9thcsuocQSPdmNltDsgS87CDlQknpD2mI20m-N80H5dqsoWIOOlJkp4T6Tyxl7fi-/exec"; // UNIFIED: Colouring Apps Script /exec — posts to the "grimoire" tab of the one Colouring Book Analytics Sheet
     var ANALYTICS_QUEUE_KEY = "grimoireAnalyticsQueueV1";
     var ANALYTICS_TALLY_KEY = "grimoireAnalyticsTallyV1";
     var ANALYTICS_META_KEY = "grimoireAnalyticsMetaV1";
